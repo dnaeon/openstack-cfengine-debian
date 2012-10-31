@@ -1,0 +1,18 @@
+#########################################################################
+#                                                                       #
+# 		apt - apt specific configurations		      	#
+#                                                                       #
+#########################################################################
+
+bundle agent apt { 
+
+files:
+
+        debian_wheezy::
+
+        "/etc/apt/sources.list"
+
+        comment         => "Copy sources.list file for the Wheezy systems",
+        perms           => mog("0444", "root", "root"),
+        copy_from       => remote_copy("$(g.masterfiles)/apt/sources.list-wheezy", "$(g.policyhost)");
+}
