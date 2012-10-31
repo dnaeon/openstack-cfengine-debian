@@ -1,0 +1,192 @@
+#########################################################################
+#                                                                       #
+# 		openstack-nova.cf - OpenStack Compute Service		#
+#                                                                       #
+#########################################################################
+
+bundle agent openstack_nova {
+
+classes:
+
+        "nova_api_is_enabled"		expression   => returnszero("/sbin/chkconfig nova-api 2345", "noshell");
+        "nova_api_is_disabled"		not          => "nova_api_is_enabled";
+
+        "nova_scheduler_is_enabled" 	expression   => returnszero("/sbin/chkconfig nova-scheduler 2345", "noshell");
+        "nova_scheduler_is_disabled"  	not          => "nova_scheduler_is_enabled";
+
+files:
+
+	openstack_nodes::
+
+		"/etc/nova/nova-compute.conf"
+
+		comment		=> "Deploy Nova Compute configuration",
+		perms		=> mog("0644", "nova", "nova"),
+		copy_from	=> remote_copy("$(g.masterfiles)/openstack/nova/nova-compute.conf", "$(g.policyhost)"),
+		classes		=> if_repaired("restart_nova_compute");
+
+		"/etc/nova/api-paste.ini"
+
+                comment         => "Deploy Nova Compute Service api-paste.ini configuration to the nodes",
+                perms           => mog("0644", "nova", "nova"),
+                copy_from       => remote_copy("$(g.masterfiles)/openstack/nova/api-paste.ini", "$(g.policyhost)"),
+                classes         => if_repaired("restart_nova_api");
+	
+		"/etc/nova/nova.conf"
+
+                comment         => "Deploy Nova Compute Service nova.conf configuration to the nodes",
+                perms           => mog("0644", "nova", "nova"),
+                copy_from       => remote_copy("$(g.masterfiles)/openstack/nova/nova.conf", "$(g.policyhost)"),
+                classes         => if_repaired("restart_nova_api");
+
+		"/etc/modules"
+
+		comment		=> "Enable key-file, network & metadata injection into instances images",
+		perms		=> mog("0644", "root", "root"),
+		edit_line	=> append_if_no_line("nbd max_part=65");
+
+processes:
+
+	openstack_controllers::
+
+		"nova-api"
+
+		comment		=> "Make sure that Nova API runs on the OpenStack controllers",
+		restart_class	=> "restart_nova_api";
+
+		"nova-scheduler"
+
+		comment		=> "Make sure that Nova Scheduler runs on the OpenStack controllers",
+		restart_class	=> "restart_nova_scheduler";
+
+	openstack_nodes::
+
+		"nova-compute"
+
+		comment		=> "Make sure that Nova Compute runs on the OpenStack nodes",
+		restart_class	=> "restart_nova_compute";
+		
+commands:
+
+        #
+        # Make sure that Nova API runs only on the OpenStack controllers
+	#
+        !openstack_controllers.(openstack_nodes.nova_api_is_enabled)::
+
+		"/usr/sbin/update-rc.d -f nova-api remove";
+		"/usr/sbin/service nova-api stop";
+
+       	#
+        # Make sure that Nova Scheduler runs only on the OpenStack controllers
+        # 
+        !openstack_controllers.(openstack_nodes.nova_scheduler_is_enabled)::
+
+		"/usr/sbin/update-rc.d -f nova-scheduler remove";
+		"/usr/sbin/service nova-scheduler stop";
+
+        #
+        # Make sure that Nova API and Scheduler are enabled on the cluster controllers
+        # We need this, as during a switchover one of the nodes might have been
+        # a node previously, so we make sure that these services are enabled on the 
+        # newly promoted controller
+        #
+        openstack_controllers.nova_api_is_disabled::
+	
+		"/usr/sbin/update-rc.d nova-api defaults";
+		"/usr/sbin/service nova-api start";
+
+       openstack_controllers.nova_scheduler_is_disabled::
+
+		"/usr/sbin/update-rc.d nova-scheduler defaults";
+		"/usr/sbin/service nova-scheduler start";
+
+	stop_nova_api::
+
+	"/usr/sbin/service nova-api stop";
+	
+	start_nova_api::
+
+	"/usr/sbin/service nova-api start";
+
+	restart_nova_api::
+
+	"/usr/sbin/service nova-api restart";
+
+	stop_nova_scheduler::
+
+	"/usr/sbin/service nova-scheduler stop";
+	
+	start_nova_scheduler::
+
+	"/usr/sbin/service nova-scheduler start";
+
+	restart_nova_scheduler::
+
+	"/usr/sbin/service nova-scheduler restart";
+
+	stop_nova_compute::
+
+	"/usr/sbin/service nova-compute stop";
+	
+	start_nova_compute::
+
+	"/usr/sbin/service nova-compute start";
+
+	restart_nova_compute::
+
+	"/usr/sbin/service nova-compute restart";
+
+packages:
+
+	openstack_controllers::
+
+	"nova-api"
+	
+		package_policy	=> "add",
+		package_version	=> "2012.1.1-10",
+		package_method	=> generic;
+	
+	"nova-scheduler"
+	
+		package_policy	=> "add",
+		package_version	=> "2012.1.1-10",
+		package_method	=> generic;
+
+	"novnc"
+	
+		package_policy	=> "add",
+		package_version	=> "2012.1~e3+dfsg+1-4",
+		package_method	=> generic;
+
+	"nova-console"
+		
+		package_policy	=> "add",
+		package_version	=> "2012.1.1-10",
+		package_method	=> generic;
+
+	openstack_nodes::
+
+	"nova-api"
+
+		package_policy	=> "add",
+		package_version	=> "2012.1.1-10",
+		package_method	=> generic;
+
+	"nova-compute"
+	
+		package_policy	=> "add",
+		package_version	=> "2012.1.1-10",
+		package_method	=> generic;
+
+	"nova-network"
+		
+		package_policy	=> "add",
+		package_version	=> "2012.1.1-6",
+		package_method	=> generic;
+
+	"nova-cert"
+
+		package_policy	=> "add",
+		package_version	=> "2012.1.1-10",
+		package_method	=> generic;
+}

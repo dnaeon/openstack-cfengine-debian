@@ -1,0 +1,92 @@
+#########################################################################
+#                                                                       #
+# 		openstack-keystone.cf - OpenStack Identity Service	#
+#                                                                       #
+#########################################################################
+
+bundle agent openstack_keystone {
+
+classes:
+
+	"keystone_is_enabled"	expression => returnszero("/sbin/chkconfig keystone 2345", "noshell");
+	"keystone_is_disabled"  not	  => "keystone_is_enabled";
+
+files:
+	
+	openstack_controllers::
+
+		"/etc/keystone/keystone.conf"
+
+		comment		=> "Deploy Keystone configuration file to the OpenStack controllers",
+		perms		=> mog("0640", "keystone", "keystone"),
+		copy_from	=> remote_copy("$(g.masterfiles)/openstack/keystone/keystone.conf", "$(g.policyhost)"),
+		classes		=> if_repaired("restart_keystone");
+
+		"/etc/keystone/creds/keystonerc"
+
+		comment		=> "Deploy keystonerc file for easy sourcing",
+		create		=> "true",
+		perms		=> mog("0400", "keystone", "keystone"),
+		copy_from	=> remote_copy("$(g.masterfiles)/openstack/keystone/keystonerc", "$(g.policyhost)");
+
+		"/etc/keystone/default_catalog.templates"
+
+		comment		=> "Deploy default catalog templates for Keystone",
+		create		=> "true",
+		perms		=> mog("0644", "keystone", "keystone"),
+		copy_from	=> remote_copy("$(g.masterfiles)/openstack/keystone/default_catalog.templates", "$(g.policyhost)"),
+		classes		=> if_repaired("restart_keystone");
+
+processes:
+
+	openstack_controllers::
+
+		"keystone"
+
+		comment		=> "Make sure that Keystone runs on the OpenStack controllers",
+		restart_class	=> "restart_keystone";
+
+commands:
+
+	#
+	# Make sure that Keystone is disabled on the OpenStack nodes,
+	# except for the cluster controllers
+	# 
+	!openstack_controllers.(openstack_nodes.keystone_is_enabled)::
+
+		"/usr/sbin/update-rc.d -f keystone remove";
+		"/usr/sbin/service keystone stop";
+
+	#
+	# Make sure that Keystone is enabled on the cluster controllers
+	# We need this, as during a switchover one of the nodes might have been
+	# a node previously, so we make sure that Keystone is enabled on the 
+	# newly promoted controller
+	#
+	openstack_controllers.keystone_is_disabled::
+
+		"/usr/sbin/update-rc.d keystone defaults";
+		"/usr/sbin/service keystone start";
+
+	stop_keystone::
+
+		"/usr/sbin/service keystone stop";
+
+	start_keystone::
+
+		"/usr/sbin/service keystone start";
+
+	restart_keystone::
+
+		"/usr/sbin/service keystone restart";
+
+packages:
+
+	openstack_nodes::
+
+	"keystone"
+	
+		package_policy	=> "add",
+		package_version	=> "2012.1.1-6",
+		package_method	=> generic;
+}

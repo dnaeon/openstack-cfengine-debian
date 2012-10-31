@@ -1,0 +1,114 @@
+#########################################################################
+#                                                                       #
+# 		openstack-glance.cf - OpenStack Image Service		#
+#                                                                       #
+#########################################################################
+
+bundle agent openstack_glance {
+
+classes:
+
+	"glance_api_is_enabled"		expression   => returnszero("/sbin/chkconfig --check glance-api 2345", "noshell");
+	"glance_api_is_disabled"     	not	     => "glance_api_is_enabled";
+
+	"glance_registry_is_enabled"   expression    => returnszero("/sbin/chkconfig --check glance-registry 2345", "noshell");
+	"glance_registry_is_disabled"  not	     => "glance_registry_is_enabled";
+
+files:
+
+	openstack_nodes::
+
+		"/etc/glance/glance-api-paste.ini"
+
+		comment		=> "Deploy glance-api-paste.ini to the OpenStack controllers",
+		perms		=> mog("0644", "glance", "glance"),
+		copy_from	=> remote_copy("$(g.masterfiles)/openstack/glance/glance-api-paste.ini", "$(g.policyhost)"),
+		classes		=> if_repaired("restart_glance_api");
+
+		"/etc/glance/glance-registry-paste.ini"
+
+		comment		=> "Deploy glance-registry-paste.ini to the OpenStack controllers",
+		perms		=> mog("0644", "glance", "glance"),
+		copy_from	=> remote_copy("$(g.masterfiles)/openstack/glance/glance-registry-paste.ini", "$(g.policyhost)"),
+		classes		=> if_repaired("restart_glance_registry");
+
+processes:
+
+	openstack_controllers::
+
+		"glance-api"
+
+		comment		=> "Make sure that Glance API runs on the OpenStack controllers",
+		restart_class	=> "restart_glance_api";
+
+		"glance-registry"
+
+		comment		=> "Make sure that Glance Registry runs on the OpenStack controllers",
+		restart_class	=> "restart_glance_registry";
+
+commands:
+
+	#
+	# Make sure that Glance API and Registry are disabled on the OpenStack nodes,
+	# except for the cluster controller
+	# 
+	!openstack_controllers.(openstack_nodes.glance_api_is_enabled)::
+
+		"/usr/sbin/update-rc.d -f glance-api remove";
+		"/usr/sbin/service glance-api stop";
+
+	!openstack_controllers.(openstack_nodes.glance_registry_is_enabled)::
+
+		"/usr/sbin/update-rc.d -f glance-registry remove";
+		"/usr/sbin/service glance-registry stop";
+
+	#
+	# Make sure that Glance API and Registry are enabled on the cluster controllers
+	# We need this, as during a switchover one of the nodes might have been
+	# a node previously, so we make sure that Glance API and Registry are enabled on the 
+	# newly promoted controller
+	#
+	openstack_controllers.glance_api_is_disabled::
+
+		"/usr/sbin/update-rc.d glance-api defaults";
+		"/usr/sbin/service glance-api start";
+
+	openstack_controllers.glance_registry_is_disabled::
+
+		"/usr/sbin/update-rc.d glance-registry defaults";
+		"/usr/sbin/service glance-registry start";
+
+	stop_glance_api::
+
+		"/usr/sbin/service glance-api stop";
+
+	start_glance_api::
+
+		"/usr/sbin/service glance-api start";
+
+	restart_glance_api::
+
+		"/usr/sbin/service glance-api restart";
+
+	stop_glance_registry::
+
+		"/usr/sbin/service glance-registry stop";
+
+	start_glance_registry::
+
+		"/usr/sbin/service glance-registry start";
+	
+	restart_glance_registry::
+
+		"/usr/sbin/service glance-registry restart";
+
+packages:
+
+	openstack_nodes::
+
+	"glance"
+	
+		package_policy	=> "add",
+		package_version	=> "2012.1.1-1.1",
+		package_method	=> generic;
+}

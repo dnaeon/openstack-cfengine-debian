@@ -1,0 +1,57 @@
+#########################################################################
+#                                                                       #
+# 		openstack-horizon.cf - OpenStack Dashboard		#
+#                                                                       #
+#########################################################################
+
+bundle agent openstack_horizon {
+
+classes:
+
+files:
+
+	openstack_controllers::
+
+	"/etc/openstack-dashboard/local_settings.py"
+	
+		comment		=> "Deploy OpenStack Dashboard local settings",
+		perms		=> mog("0644", "root", "root"),
+		copy_from	=> remote_copy("$(g.masterfiles)/openstack/horizon/local_settings.py", "$(g.policyhost)"),
+		classes		=> if_repaired("restart_apache");
+
+	"/var/www/."
+
+		comment		=> "Make sure that we have correct ownership set in /var/www",
+		perms		=> mog("0644", "www-data", "www-data"),
+		depth_search	=> recurse("inf");
+        
+processes:
+
+commands:
+
+	restart_apache::
+
+	"/usr/sbin/service apache2 restart";
+
+packages:
+
+	openstack_nodes::
+
+	"openstack-dashboard"
+	
+		package_policy	=> "add",
+		package_version	=> "2012.1.1-6",
+		package_method	=> generic;
+
+	"memcached"
+	
+		package_policy	=> "add",
+		package_version	=> "1.4.13-0.1",
+		package_method	=> generic;
+
+	"openstack-dashboard-apache"
+
+		package_policy	=> "add",
+		package_version	=> "2012.1.1-6",
+		package_method	=> generic;
+}
