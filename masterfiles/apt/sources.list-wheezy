@@ -1,0 +1,11 @@
+# 
+
+# deb cdrom:[Debian GNU/Linux wheezy-DI-b2 _Wheezy_ - Official Snapshot amd64 NETINST Binary-1 20120905-23:05]/ wheezy main
+
+#deb cdrom:[Debian GNU/Linux wheezy-DI-b2 _Wheezy_ - Official Snapshot amd64 NETINST Binary-1 20120905-23:05]/ wheezy main
+
+deb http://ftp.bg.debian.org/debian/ wheezy main
+deb-src http://ftp.bg.debian.org/debian/ wheezy main
+
+deb http://security.debian.org/ wheezy/updates main
+deb-src http://security.debian.org/ wheezy/updates main

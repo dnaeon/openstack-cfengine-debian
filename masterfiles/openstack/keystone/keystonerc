@@ -1,0 +1,7 @@
+export SERVICE_ENDPOINT=http://hv01.example.org:35357/v2.0/
+export SERVICE_TOKEN=Idoodinmygwyffoderyatsya
+export OS_USERNAME=admin
+export OS_PASSWORD=fuvmacwyegthIjfefIfamNen
+export OS_TENANT_NAME=admin_project
+export OS_AUTH_URL=http://hv01.example.org:5000/v2.0/
+export OS_VERSION=1.1
