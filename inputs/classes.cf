@@ -1,6 +1,6 @@
 #########################################################################
 #                                                                       #
-# 		classes.cf - Cfengine 3 user-defined classes		#
+# 		classes.cf - Cfengine user-defined classes		#
 #			     	      		     			#
 #########################################################################
 
@@ -17,7 +17,7 @@ classes:
     	};
 
 	#
-	# All hosts in the internal SumUp domain
+	# All hosts in the internal domain
 	#
 
     	"example_org_hosts" or => {
